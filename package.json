@@ -1,7 +1,7 @@
 {
-  "name": "OpenShift-Sample-App",
+  "name": "Proxy-Forarder",
   "version": "1.0.0",
-  "description": "OpenShift Sample Application",
+  "description": "Proxy with static ip forwarding request to api asking for a static ip.",
   "keywords": [
     "OpenShift",
     "Node.js",
@@ -9,11 +9,8 @@
     "openshift"
   ],
   "author": {
-    "name": "OpenShift",
-    "email": "ramr@example.org",
-    "url": "http://www.openshift.com/"
+    "name": "Luze26"
   },
-  "homepage": "http://www.openshift.com/",
   "repository": {
     "type": "git",
     "url": "https://github.com/openshift/origin-server"
@@ -25,7 +22,8 @@
   },
 
   "dependencies": {
-    "express": "~3.4.4"
+    "express": "~3.4.4",
+    "request": "*"
   },
   "devDependencies": {},
   "bundleDependencies": [],

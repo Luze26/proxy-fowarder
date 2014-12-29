@@ -1,13 +1,12 @@
 #!/bin/env node
-//  OpenShift sample Node application
-var express = require('express');
-var fs      = require('fs');
 
+var express = require('express');
+var request = require('request');
 
 /**
  *  Define the sample application.
  */
-var SampleApp = function() {
+var ProxyApp = function() {
 
     //  Scope.
     var self = this;
@@ -23,7 +22,7 @@ var SampleApp = function() {
     self.setupVariables = function() {
         //  Set the environment variables we need.
         self.ipaddress = process.env.OPENSHIFT_NODEJS_IP;
-        self.port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+        self.port      = process.env.OPENSHIFT_NODEJS_PORT || 3000;
 
         if (typeof self.ipaddress === "undefined") {
             //  Log errors on OpenShift but continue w/ 127.0.0.1 - this
@@ -32,26 +31,6 @@ var SampleApp = function() {
             self.ipaddress = "127.0.0.1";
         };
     };
-
-
-    /**
-     *  Populate the cache.
-     */
-    self.populateCache = function() {
-        if (typeof self.zcache === "undefined") {
-            self.zcache = { 'index.html': '' };
-        }
-
-        //  Local cache for static content.
-        self.zcache['index.html'] = fs.readFileSync('./index.html');
-    };
-
-
-    /**
-     *  Retrieve entry (content) from cache.
-     *  @param {string} key  Key identifying content to retrieve from cache.
-     */
-    self.cache_get = function(key) { return self.zcache[key]; };
 
 
     /**
@@ -93,16 +72,37 @@ var SampleApp = function() {
      *  Create the routing table entries + handlers for the application.
      */
     self.createRoutes = function() {
-        self.routes = { };
+        self.routes = { post: {}, get: {}};
 
-        self.routes['/asciimo'] = function(req, res) {
-            var link = "http://i.imgur.com/kmbjB.png";
-            res.send("<html><body><img src='" + link + "'></body></html>");
+        self.routes.post['/forward'] = function(req, res) {
+            var method = req.body.method;
+            var url = req.body.url;
+            var params = JSON.parse(req.body.params);
+
+            var options = {
+                url: url,
+                method: method,
+                headers: {
+                    'User-Agent': 'request'
+                }
+            };
+
+            if(method === 'GET') {
+                options.qs = params;
+            }
+            else {
+                options.form = params;
+            }
+
+            request(options, function (error, response, body) {
+                res.status(response.statusCode);
+                res.send(body);
+            });
         };
 
-        self.routes['/'] = function(req, res) {
+        self.routes.get['/'] = function(req, res) {
             res.setHeader('Content-Type', 'text/html');
-            res.send(self.cache_get('index.html') );
+            res.json({message: 'Working'});
         };
     };
 
@@ -112,12 +112,20 @@ var SampleApp = function() {
      *  the handlers.
      */
     self.initializeServer = function() {
+        var r;
+
         self.createRoutes();
         self.app = express.createServer();
 
+        self.app.use(express.bodyParser());
+
         //  Add handlers for the app (from the routes).
-        for (var r in self.routes) {
-            self.app.get(r, self.routes[r]);
+        for (r in self.routes.post) {
+            self.app.post(r, self.routes.post[r]);
+        }
+
+        for (r in self.routes.get) {
+            self.app.get(r, self.routes.get[r]);
         }
     };
 
@@ -127,7 +135,6 @@ var SampleApp = function() {
      */
     self.initialize = function() {
         self.setupVariables();
-        self.populateCache();
         self.setupTerminationHandlers();
 
         // Create the express server and routes.
@@ -153,7 +160,7 @@ var SampleApp = function() {
 /**
  *  main():  Main code.
  */
-var zapp = new SampleApp();
+var zapp = new ProxyApp();
 zapp.initialize();
 zapp.start();
 
